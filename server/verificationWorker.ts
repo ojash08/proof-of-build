@@ -3,7 +3,7 @@
  * Processes verification jobs asynchronously
  */
 
-import { getDb, updateVerifiedBuild, createOrUpdateCompetency } from "./db";
+import { getDb, updateVerifiedBuild, createOrUpdateCompetency, getUserById } from "./db";
 import { verifyRepositoryArtifact } from "./_core/verifyArtifact";
 import { fetchRepositoryMetadata } from "./_core/githubApi";
 import { eq } from "drizzle-orm";
@@ -44,8 +44,22 @@ export async function processVerificationJob(buildId: number) {
     console.log(`[Verification Worker] Processing build ${buildId}: ${build.repoOwner}/${build.repoName}`);
 
     try {
+      // Fetch user to verify ownership
+      const user = await getUserById(build.userId);
+      if (!user || !user.username) {
+        throw new Error("Ownership verification failed: Your account does not have a linked GitHub username.");
+      }
+
       // Fetch repository metadata from GitHub
       const metadata = await fetchRepositoryMetadata(build.repoOwner, build.repoName);
+
+      // Verify ownership
+      const isOwner = metadata.owner.toLowerCase() === user.username.toLowerCase();
+      const isContributor = metadata.contributors && metadata.contributors.some((c: string) => c.toLowerCase() === user.username!.toLowerCase());
+      
+      if (!isOwner && !isContributor) {
+        throw new Error(`Ownership verification failed: Your username (@${user.username}) is not recognized as the owner or a contributor of this repository.`);
+      }
 
       // Run TEE verification
       const teeResult = await verifyRepositoryArtifact(buildId, metadata, TEE_SECRET);
@@ -81,13 +95,12 @@ export async function processVerificationJob(buildId: number) {
 
         console.log(`[Verification Worker] Build ${buildId} verified successfully`);
       } else {
-        // Update with error
         await updateVerifiedBuild(buildId, {
           status: "failed",
-          verificationError: teeResult.error || teeResult.message || "Verification failed",
+          verificationError: teeResult.error || "Verification failed",
         });
 
-        console.error(`[Verification Worker] Build ${buildId} verification failed: ${teeResult.error || teeResult.message}`);
+        console.error(`[Verification Worker] Build ${buildId} verification failed: ${teeResult.error}`);
       }
     } catch (innerError: any) {
       console.error(`[Verification Worker] Inner error processing build ${buildId}:`, innerError);

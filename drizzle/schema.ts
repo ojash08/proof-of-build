@@ -26,6 +26,7 @@ export const users = mysqlTable("users", {
   username: varchar("username", { length: 64 }).unique(), // Public username slug
   bio: text("bio"), // User bio
   avatarUrl: text("avatarUrl"), // Avatar URL
+  bannerUrl: text("bannerUrl"), // Banner URL for public profile
   totalXp: int("totalXp").default(0).notNull(), // Total experience points
   currentLevel: int("currentLevel").default(1).notNull(), // Current level
   trustScore: decimal("trustScore", { precision: 5, scale: 2 }).default("0.00").notNull(), // 0-100 trust score

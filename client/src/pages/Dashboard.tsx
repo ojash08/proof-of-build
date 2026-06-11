@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Github, Zap, Trophy, Code2, TrendingUp, Swords } from "lucide-react";
+import { Github, Zap, Trophy, Code2, TrendingUp, Swords, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { UserButton } from "@clerk/clerk-react";
 import { SearchBar } from "@/components/SearchBar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useTheme } from "@/contexts/ThemeContext";
 
 /**
  * Sci-fi terminal aesthetic dashboard for verified developers
@@ -21,8 +23,12 @@ export default function Dashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [usernameInput, setUsernameInput] = useState("");
   const [isSettingUsername, setIsSettingUsername] = useState(false);
+  const [bannerUrlInput, setBannerUrlInput] = useState("");
+  const [isSettingBanner, setIsSettingBanner] = useState(false);
   const [canReverify, setCanReverify] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  
+  const { theme, toggleTheme } = useTheme();
 
   // tRPC queries
   const profileQuery = trpc.user.getProfile.useQuery(undefined, {
@@ -90,6 +96,22 @@ export default function Dashboard() {
     }
   };
 
+  const handleSetBanner = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bannerUrlInput.trim()) return;
+    
+    setIsSettingBanner(true);
+    try {
+      await updateProfileMutation.mutateAsync({ bannerUrl: bannerUrlInput.trim() });
+      toast.success("Banner updated successfully!");
+      profileQuery.refetch();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update banner");
+    } finally {
+      setIsSettingBanner(false);
+    }
+  };
+
   const builds = buildsQuery.data || [];
 
   const parsedUrl = useMemo(() => {
@@ -146,9 +168,26 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center">
-        <div className="h-10 w-10 border-4 border-[#00FF00] border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-[#00FF00] mt-4 font-mono">Initializing connection...</p>
+      <div className="min-h-screen bg-[#0A0A0A] flex flex-col p-6 gap-6" style={{ backgroundImage: "radial-gradient(circle at center, #111 0%, #000 100%)" }}>
+        <div className="glass-panel border-b border-[#00FF00] px-6 py-4 flex justify-between items-center rounded">
+          <Skeleton className="h-8 w-64 bg-[#00FF00]/20" />
+          <Skeleton className="h-10 w-96 bg-[#00FF00]/20" />
+          <Skeleton className="h-8 w-32 bg-[#00FF00]/20" />
+        </div>
+        <div className="max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-6">
+          <div className="col-span-1 md:col-span-3 space-y-4">
+            <Skeleton className="h-96 w-full rounded glass-panel bg-[#00FF00]/10" />
+            <Skeleton className="h-48 w-full rounded glass-panel bg-[#00FF00]/10" />
+          </div>
+          <div className="col-span-1 md:col-span-6 space-y-6">
+            <Skeleton className="h-48 w-full rounded glass-panel bg-[#00FF00]/10" />
+            <Skeleton className="h-96 w-full rounded glass-panel bg-[#00FF00]/10" />
+          </div>
+          <div className="col-span-1 md:col-span-3 space-y-4">
+            <Skeleton className="h-64 w-full rounded glass-panel bg-[#00FF00]/10" />
+            <Skeleton className="h-64 w-full rounded glass-panel bg-[#00FF00]/10" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -176,15 +215,21 @@ export default function Dashboard() {
   const activity = activityQuery.data || [];
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white font-mono">
+    <div className={`min-h-screen bg-[url('/pixel-bg.png')] bg-cover bg-center bg-fixed ${theme === 'dark' ? 'bg-black/80 bg-blend-multiply text-white' : 'text-black'} transition-all duration-300`}>
+      {profile?.bannerUrl && (
+        <div 
+          className="h-48 w-full bg-cover bg-center border-b-4 border-black shadow-[0_4px_0_#000]" 
+          style={{ backgroundImage: `url(${profile.bannerUrl})` }}
+        />
+      )}
       {/* Terminal header */}
-      <div className="border-b border-[#00FF00] bg-[#0F0F0F] px-6 py-4">
+      <div className={`border-b-4 border-black ${theme === 'dark' ? 'bg-[#111] shadow-[0_4px_0_#333]' : 'bg-[#FFD100] shadow-[0_4px_0_#000]'} px-6 py-4 transition-colors duration-300`}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-[#00FF00] flex items-center gap-2">
-              <span className="text-[#8B5CF6]">▶</span> PROOF OF BUILD TERMINAL
+            <h1 className={`text-2xl font-bold font-pixel flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+              <span className={theme === 'dark' ? 'text-[#00FF00]' : 'text-black'}>▶</span> CODING ADVENTURE
             </h1>
-            <p className="text-[#666] text-sm mt-1">
+            <p className={`${theme === 'dark' ? 'text-white/70' : 'text-black/70'} text-sm mt-1 font-bold`}>
               {profile?.username || "Developer"} • Level {profile?.currentLevel || 1} • XP:{" "}
               {profile?.totalXp || 0}
             </p>
@@ -192,19 +237,28 @@ export default function Dashboard() {
           <div className="flex-1 flex justify-center px-6">
             <SearchBar />
           </div>
-          <div className="text-right flex flex-col items-end gap-2">
-            <div className="text-[#00FF00] text-sm">
+          <div className="text-right flex flex-row items-center gap-4">
+            <div className={`font-bold font-pixel text-sm ${theme === 'dark' ? 'text-[#00FF00]' : 'text-black'}`}>
               TRUST SCORE: {profile?.trustScore || "0.00"}%
             </div>
+            {toggleTheme && (
+              <button 
+                onClick={toggleTheme} 
+                className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-[#00FF00]' : 'hover:bg-black/10 text-black'}`}
+                title="Toggle Theme"
+              >
+                {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+              </button>
+            )}
             {devToken ? (
               <Button 
                 onClick={logout} 
-                className="bg-transparent border border-red-500 text-red-500 hover:bg-red-500/10 text-xs px-2 py-1 h-auto"
+                className="btn-rpg bg-red-500 text-white border-red-900 text-xs px-2 py-1 h-auto"
               >
                 SIGN OUT
               </Button>
             ) : (
-              <UserButton appearance={{ elements: { userButtonPopoverCard: "bg-[#0F0F0F] border border-[#00FF00] text-white" } }} />
+              <UserButton appearance={{ elements: { userButtonPopoverCard: theme === 'dark' ? "bg-[#0F0F0F] border border-[#00FF00] text-white" : "" } }} />
             )}
           </div>
         </div>
@@ -212,7 +266,7 @@ export default function Dashboard() {
 
       {/* XP Progress Bar */}
       <motion.div
-        className="h-1 bg-gradient-to-r from-[#00FF00] via-[#8B5CF6] to-[#00FF00]"
+        className="h-1 bg-gradient-to-r from-[#00FF00] via-[#8B5CF6] to-[#00FF00] neon-glow"
         initial={{ scaleX: 0 }}
         animate={{ scaleX: 1 }}
         transition={{ duration: 1, ease: "easeOut" }}
@@ -223,7 +277,7 @@ export default function Dashboard() {
         {/* Username Setup Prompt */}
         {profile && !profile.username && (
           <motion.div 
-            className="mb-6 border border-[#8B5CF6] bg-[#8B5CF6]/10 p-6 rounded-lg"
+            className="mb-6 dialogue-box-dark"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
           >
@@ -245,13 +299,39 @@ export default function Dashboard() {
               <Button
                 type="submit"
                 disabled={isSettingUsername || !usernameInput.trim()}
-                className="bg-[#8B5CF6] text-white hover:bg-[#7c4fe3] font-bold w-full sm:w-auto"
+                className="btn-rpg-blue w-full sm:w-auto cursor-pointer"
               >
                 {isSettingUsername ? "SAVING..." : "CLAIM USERNAME"}
               </Button>
             </form>
           </motion.div>
         )}
+
+                {/* Horizontal Stats Summary */}
+        <motion.div
+          className="dialogue-box-dark mb-6 flex flex-row items-center justify-around text-center"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div>
+            <div className="text-[#FFD100] text-xs font-pixel mb-1 text-pixel-shadow">Total Repositories</div>
+            <div className="text-white text-3xl font-bold font-pixel text-pixel-shadow">{builds.length}</div>
+          </div>
+          <div>
+            <div className="text-[#FFD100] text-xs font-pixel mb-1 text-pixel-shadow">Verified Builds</div>
+            <div className="text-white text-3xl font-bold font-pixel text-pixel-shadow">
+              {builds.filter((b) => b.status === "verified").length}
+            </div>
+          </div>
+          <div>
+            <div className="text-[#FFD100] text-xs font-pixel mb-1 text-pixel-shadow">Skills Unlocked</div>
+            <div className="text-white text-3xl font-bold font-pixel text-pixel-shadow">{competencies.length}</div>
+          </div>
+          <div>
+            <div className="text-[#FFD100] text-xs font-pixel mb-1 text-pixel-shadow">Badges Earned</div>
+            <div className="text-white text-3xl font-bold font-pixel text-pixel-shadow">{badges.length}</div>
+          </div>
+        </motion.div>
 
         {/* Main grid layout */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -262,9 +342,9 @@ export default function Dashboard() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <div className="border border-[#00FF00] bg-[#0F0F0F] p-4 rounded">
-              <h2 className="text-[#00FF00] font-bold mb-4 flex items-center gap-2">
-                <TrendingUp size={18} /> ACTIVITY FEED
+            <div className="dialogue-box-dark">
+              <h2 className="text-[#FFD100] font-bold font-pixel text-pixel-shadow mb-4 flex items-center gap-2">
+                <TrendingUp size={18} /> QUEST LOG
               </h2>
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {activity.length > 0 ? (
@@ -289,8 +369,8 @@ export default function Dashboard() {
             </div>
 
             {/* Badges */}
-            <div className="border border-[#00FF00] bg-[#0F0F0F] p-4 rounded">
-              <h3 className="text-[#00FF00] font-bold mb-3 text-sm">BADGES</h3>
+            <div className="dialogue-box-dark">
+              <h3 className="text-[#FFD100] font-bold font-pixel text-pixel-shadow mb-3 text-sm">INVENTORY</h3>
               <div className="grid grid-cols-3 gap-2">
                 {badges.map((badge) => (
                   <motion.div
@@ -314,8 +394,8 @@ export default function Dashboard() {
             transition={{ delay: 0.2 }}
           >
             {/* Repository Submission Form */}
-            <div className="border border-[#00FF00] bg-[#0F0F0F] p-6 rounded">
-              <h2 className="text-[#00FF00] font-bold mb-4 flex items-center gap-2">
+            <div className="dialogue-box-dark">
+              <h2 className="text-[#FFD100] font-bold font-pixel text-pixel-shadow mb-4 flex items-center gap-2">
                 <Github size={20} /> SUBMIT REPOSITORY
               </h2>
               <form onSubmit={handleSubmitRepo} className="space-y-4">
@@ -334,25 +414,27 @@ export default function Dashboard() {
                 </div>
                 <Button
                   type="submit"
-                  disabled={isSubmitting || (!!existingBuild && !canReverify) || isCheckingUpdate}
-                  className="w-full bg-[#00FF00] text-[#0A0A0A] hover:bg-[#00DD00] font-bold disabled:bg-[#333] disabled:text-[#888]"
+                  disabled={isSubmitting || (!!existingBuild && existingBuild.status !== "failed" && !canReverify) || isCheckingUpdate}
+                  className="w-full btn-rpg disabled:opacity-50"
                 >
                   {isSubmitting 
                     ? "SUBMITTING..." 
                     : isCheckingUpdate 
                       ? "CHECKING REPOSITORY STATUS..."
-                      : existingBuild && !canReverify 
-                        ? (existingBuild.status === "pending" || existingBuild.status === "processing" ? "VERIFICATION IN PROGRESS..." : "ALREADY VERIFIED")
-                        : existingBuild && canReverify
-                          ? "RE-VERIFY UPDATED REPOSITORY"
-                          : "SUBMIT FOR VERIFICATION"}
+                      : existingBuild && existingBuild.status === "failed"
+                        ? "RETRY FAILED VERIFICATION"
+                        : existingBuild && !canReverify 
+                          ? (existingBuild.status === "pending" || existingBuild.status === "processing" ? "VERIFICATION IN PROGRESS..." : "ALREADY VERIFIED")
+                          : existingBuild && canReverify
+                            ? "RE-VERIFY UPDATED REPOSITORY"
+                            : "SUBMIT FOR VERIFICATION"}
                 </Button>
               </form>
             </div>
 
             {/* Verified Builds */}
-            <div className="border border-[#00FF00] bg-[#0F0F0F] p-6 rounded">
-              <h2 className="text-[#00FF00] font-bold mb-4 flex items-center gap-2">
+            <div className="dialogue-box-dark">
+              <h2 className="text-[#FFD100] font-bold font-pixel text-pixel-shadow mb-4 flex items-center gap-2">
                 <Code2 size={20} /> VERIFIED BUILDS ({builds.length})
               </h2>
               <div className="space-y-3">
@@ -370,19 +452,34 @@ export default function Dashboard() {
                           <div className="text-[#00FF00] font-bold">{build.repoName}</div>
                           <div className="text-[#666] text-xs">{build.repoUrl}</div>
                         </div>
-                        <span
-                          className={`text-xs px-2 py-1 rounded font-bold ${
-                            build.status === "verified"
-                              ? "bg-[#00FF00] text-[#0A0A0A]"
-                              : build.status === "processing"
-                                ? "bg-[#8B5CF6] text-white"
-                                : build.status === "failed"
-                                  ? "bg-red-600 text-white"
-                                  : "bg-[#666] text-white"
-                          }`}
-                        >
-                          {build.status.toUpperCase()}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {build.status === "failed" && (
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="text-xs h-6 px-2 border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
+                              onClick={() => {
+                                setRepoUrl(build.repoUrl || "");
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                            >
+                              RETRY
+                            </Button>
+                          )}
+                          <span
+                            className={`text-xs px-2 py-1 rounded font-bold ${
+                              build.status === "verified"
+                                ? "bg-[#00FF00] text-[#0A0A0A]"
+                                : build.status === "processing"
+                                  ? "bg-[#8B5CF6] text-white"
+                                  : build.status === "failed"
+                                    ? "bg-red-600 text-white"
+                                    : "bg-[#666] text-white"
+                            }`}
+                          >
+                            {build.status.toUpperCase()}
+                          </span>
+                        </div>
                       </div>
                       {build.complexityScore && (
                         <div className="text-xs text-[#00FF00] mt-2">
@@ -400,9 +497,9 @@ export default function Dashboard() {
             </div>
 
             {/* Competencies Radar */}
-            <div className="border border-[#00FF00] bg-[#0F0F0F] p-6 rounded">
-              <h2 className="text-[#00FF00] font-bold mb-4 flex items-center gap-2">
-                <Zap size={20} /> COMPETENCY MATRIX
+            <div className="dialogue-box-dark">
+              <h2 className="text-[#FFD100] font-bold font-pixel text-pixel-shadow mb-4 flex items-center gap-2">
+                <Zap size={20} /> CHARACTER STATS
               </h2>
               <div className="space-y-2">
                 {competencies.length > 0 ? (
@@ -451,36 +548,11 @@ export default function Dashboard() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
           >
-            {/* Stats Summary */}
-            <div className="border border-[#00FF00] bg-[#0F0F0F] p-4 rounded">
-              <h3 className="text-[#00FF00] font-bold mb-4 flex items-center gap-2">
-                <Trophy size={18} /> STATS
-              </h3>
-              <div className="space-y-3">
-                <div className="border-l-2 border-[#8B5CF6] pl-3">
-                  <div className="text-[#666] text-xs">Total Repositories</div>
-                  <div className="text-[#00FF00] text-xl font-bold">{builds.length}</div>
-                </div>
-                <div className="border-l-2 border-[#8B5CF6] pl-3">
-                  <div className="text-[#666] text-xs">Verified Builds</div>
-                  <div className="text-[#00FF00] text-xl font-bold">
-                    {builds.filter((b) => b.status === "verified").length}
-                  </div>
-                </div>
-                <div className="border-l-2 border-[#8B5CF6] pl-3">
-                  <div className="text-[#666] text-xs">Skills Unlocked</div>
-                  <div className="text-[#00FF00] text-xl font-bold">{competencies.length}</div>
-                </div>
-                <div className="border-l-2 border-[#8B5CF6] pl-3">
-                  <div className="text-[#666] text-xs">Badges Earned</div>
-                  <div className="text-[#00FF00] text-xl font-bold">{badges.length}</div>
-                </div>
-              </div>
-            </div>
+
 
             {/* Daily Quests */}
-            <div className="border border-[#00FF00] bg-[#0F0F0F] p-4 rounded">
-              <h3 className="text-[#00FF00] font-bold mb-4 flex items-center gap-2">
+            <div className="dialogue-box-dark">
+              <h3 className="text-[#FFD100] font-bold font-pixel text-pixel-shadow mb-4 flex items-center gap-2">
                 <Zap size={18} /> DAILY QUESTS
               </h3>
               <div className="space-y-2">
@@ -520,8 +592,8 @@ export default function Dashboard() {
             </div>
 
             {/* Boss Battles */}
-            <div className="border border-red-500/50 bg-[#0F0F0F] p-4 rounded">
-              <h3 className="text-red-400 font-bold mb-4 flex items-center gap-2">
+            <div className="dialogue-box-dark border-red-500/50">
+              <h3 className="text-[#FF5555] font-bold font-pixel text-pixel-shadow mb-4 flex items-center gap-2">
                 <Swords size={18} /> BOSS BATTLES
               </h3>
               <div className="space-y-2">
@@ -574,6 +646,30 @@ export default function Dashboard() {
                   </div>
                 </motion.div>
               </div>
+            </div>
+
+            {/* Banner Settings */}
+            <div className="dialogue-box-dark">
+              <h3 className="text-[#FFD100] font-bold font-pixel text-pixel-shadow mb-4 flex items-center gap-2">
+                <Zap size={18} /> PROFILE BANNER
+              </h3>
+              <form onSubmit={handleSetBanner} className="space-y-3">
+                <Input
+                  type="url"
+                  placeholder="Image URL (e.g. imgur...)"
+                  value={bannerUrlInput}
+                  onChange={(e) => setBannerUrlInput(e.target.value)}
+                  className="bg-[#1A1A1A] border-[#8B5CF6] text-white text-xs h-8"
+                  disabled={isSettingBanner}
+                />
+                <Button
+                  type="submit"
+                  disabled={isSettingBanner || !bannerUrlInput.trim()}
+                  className="btn-rpg-blue w-full cursor-pointer text-xs h-8"
+                >
+                  {isSettingBanner ? "SAVING..." : "UPDATE BANNER"}
+                </Button>
+              </form>
             </div>
 
             {/* Public Profile Link */}

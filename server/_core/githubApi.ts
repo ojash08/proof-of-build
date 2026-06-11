@@ -41,8 +41,10 @@ export async function fetchRepositoryMetadata(owner: string, repo: string) {
       if (process.env.NODE_ENV === "test" || process.env.VITEST) {
         throw new Error(`GitHub API error: ${repoResponse.status}`);
       }
-      console.warn(`[GitHub API] Failed to fetch from GitHub (Status: ${repoResponse.status}). Falling back to simulated metadata.`);
-      return getSimulatedMetadata(owner, repo);
+      if (repoResponse.status === 404) {
+        throw new Error("Repository not found. If this is a private repository, please connect your GitHub account to authorize Proof of Build.");
+      }
+      throw new Error(`Failed to fetch from GitHub (Status: ${repoResponse.status}). Please check if the repository exists and is accessible.`);
     }
 
     const repoData: GitHubRepoResponse = await repoResponse.json();
@@ -90,6 +92,8 @@ export async function fetchRepositoryMetadata(owner: string, repo: string) {
     });
 
     let contributorCount = 0;
+    let contributorsList: string[] = [];
+    
     if (contributorsResponse.ok) {
       const linkHeader = contributorsResponse.headers.get("Link");
       if (linkHeader) {
@@ -97,6 +101,23 @@ export async function fetchRepositoryMetadata(owner: string, repo: string) {
         contributorCount = lastMatch ? parseInt(lastMatch[1]) : 1;
       } else {
         contributorCount = 1;
+      }
+      
+      // We also need the actual usernames to verify ownership.
+      // Fetch up to 100 contributors.
+      const contributorsListUrl = `https://api.github.com/repos/${owner}/${repo}/contributors?per_page=100`;
+      const contributorsListResponse = await fetch(contributorsListUrl, {
+        headers: {
+          Accept: "application/vnd.github.v3+json",
+          "User-Agent": "Proof-of-Build",
+        },
+      });
+      
+      if (contributorsListResponse.ok) {
+        const data = await contributorsListResponse.json();
+        if (Array.isArray(data)) {
+          contributorsList = data.map((c: any) => c.login);
+        }
       }
     }
 
@@ -134,13 +155,14 @@ export async function fetchRepositoryMetadata(owner: string, repo: string) {
       contributorCount,
       starCount: repoData.stargazers_count,
       readmeContent,
+      contributors: contributorsList,
     };
   } catch (error) {
     if (process.env.NODE_ENV === "test" || process.env.VITEST) {
       throw error;
     }
-    console.warn("[GitHub API] Error fetching repository metadata, falling back to simulated metadata:", error);
-    return getSimulatedMetadata(owner, repo);
+    console.error("[GitHub API] Error fetching repository metadata:", error);
+    throw error;
   }
 }
 
@@ -155,5 +177,6 @@ function getSimulatedMetadata(owner: string, repo: string) {
     contributorCount: 4,
     starCount: 28,
     readmeContent: `# ${repo}\n\nThis is a simulated README content used by the Proof of Build local simulation.`,
+    contributors: [owner],
   };
 }

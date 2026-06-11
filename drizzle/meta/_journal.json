@@ -15,6 +15,13 @@
       "when": 1781026514027,
       "tag": "0001_dashing_franklin_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1781114979020,
+      "tag": "0002_flat_starfox",
+      "breakpoints": true
     }
   ]
 }

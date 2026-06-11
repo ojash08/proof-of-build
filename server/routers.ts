@@ -52,6 +52,7 @@ export const appRouter = router({
         username: z.string().optional(),
         bio: z.string().optional(),
         avatarUrl: z.string().optional(),
+        bannerUrl: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         await updateUserProfile(ctx.user.id, input);
@@ -89,20 +90,44 @@ export const appRouter = router({
         const [, owner, repo] = urlMatch;
         const repoName = repo.replace(/\.git$/, "");
 
-        // Create pending build record
-        const result = await createVerifiedBuild({
-          userId: ctx.user.id,
-          repoUrl: input.repoUrl,
-          repoName,
-          repoOwner: owner,
-        });
+        // Check if build already exists for this user and repo
+        const existingBuilds = await getUserVerifiedBuilds(ctx.user.id);
+        const existingBuild = existingBuilds.find(b => b.repoOwner.toLowerCase() === owner.toLowerCase() && b.repoName.toLowerCase() === repoName.toLowerCase());
 
-        if (result && result.id && typeof processVerificationJob === "function") {
+        let buildId: number;
+        let result: any;
+
+        if (existingBuild) {
+          if (existingBuild.status === "pending" || existingBuild.status === "processing") {
+            throw new Error("This repository is already being verified.");
+          }
+          
+          // Reset existing build
+          await updateVerifiedBuild(existingBuild.id, {
+            status: "pending",
+            verificationError: null,
+            submittedAt: new Date(),
+          } as any);
+          
+          buildId = existingBuild.id;
+          result = { ...existingBuild, status: "pending" };
+        } else {
+          // Create pending build record
+          result = await createVerifiedBuild({
+            userId: ctx.user.id,
+            repoUrl: input.repoUrl,
+            repoName,
+            repoOwner: owner,
+          });
+          buildId = result?.id;
+        }
+
+        if (buildId && typeof processVerificationJob === "function") {
           // Process verification asynchronously in the background
-          const promise = processVerificationJob(result.id);
+          const promise = processVerificationJob(buildId);
           if (promise && typeof promise.catch === "function") {
             promise.catch(err => {
-              console.error(`[Verification] Error starting job ${result.id}:`, err);
+              console.error(`[Verification] Error starting job ${buildId}:`, err);
             });
           }
         }
@@ -112,7 +137,7 @@ export const appRouter = router({
           ctx.user.id,
           "build_verified",
           `Repository submission: ${repoName}`,
-          `Submitted ${repoName} for verification`,
+          existingBuild ? `Re-submitted ${repoName} for verification` : `Submitted ${repoName} for verification`,
           { repoUrl: input.repoUrl }
         );
 
@@ -143,7 +168,7 @@ export const appRouter = router({
         if (!user) return [];
 
         const builds = await getUserVerifiedBuilds(user.id);
-        return builds.filter(b => b.isPublicVisible);
+        return builds.filter(b => b.isPublicVisible && b.status === "verified");
       }),
 
     updateBuildStatus: protectedProcedure

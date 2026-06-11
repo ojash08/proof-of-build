@@ -1,0 +1,12 @@
+﻿[SizeNWSE]
+Path=Diag_1(1).ani
+
+[SizeNESW]
+Path=Diag_1(2).ani
+
+[SizeWE]
+Path=Horizontal_1.ani
+
+[SizeNS]
+Path=Vertical_1.ani
+
