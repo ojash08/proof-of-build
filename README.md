@@ -1,8 +1,7 @@
-# Proof of Build 🚀
+# Proof of Build 
 
 **Proof of Build** is a platform for developers to verify their skills, showcase their projects, and earn trust in the community. It acts as a sci-fi terminal-themed dashboard where verified developers can submit repositories, build their skill tree, and share their public profile.
 
-> **Note:** This project was built and designed entirely by me only!
 
 ## 🛠️ Tech Stack
 
@@ -85,7 +84,3 @@ const handleSubmit = async (repoUrl: string) => {
   }
 };
 ```
-
----
-
-*Built with ❤️ by me only.*
