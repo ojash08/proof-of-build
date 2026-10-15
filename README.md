@@ -65,7 +65,7 @@ Submit your repositories, track your daily quests, and level up your developer p
 
 ![Dashboard Screenshot](client/public/pixel-bg.png)
 
-*(You can replace the image path above with actual screenshots of your dashboard and public profile!)*
+
 
 ## 💻 Code Snippets
 
